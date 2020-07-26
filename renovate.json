@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "groupName": "packages",
+      "paths": ["packages.json"],
+      "excludePackageNames": ["x3dom"]
+    }
+  ]
+}
