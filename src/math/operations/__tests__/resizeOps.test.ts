@@ -1,112 +1,105 @@
 import { expand, snub, contract, dual, twist } from "../resizeOps"
-import { Polyhedron } from "math/polyhedra"
+import { validateOpInputs, validateHasOptions } from "../operationTestUtils"
 
 describe("expand", () => {
-  describe("canApplyTo", () => {
-    function expectApplyTo(name: string, value: boolean = true) {
-      expect(expand.canApplyTo(Polyhedron.get(name))).toEqual(value)
-    }
-    it("works on regular and truncated solids", () => {
-      expectApplyTo("cube")
-      expectApplyTo("truncated dodecahedron")
+  it("canApplyTo", () => {
+    validateOpInputs(expand, {
+      pass: ["cube", "truncated dodecahedron"],
+      fail: [],
     })
   })
 })
 
 describe("snub", () => {
-  describe("canApplyTo", () => {
-    function expectApplyTo(name: string, value: boolean = true) {
-      expect(snub.canApplyTo(Polyhedron.get(name))).toEqual(value)
-    }
-    it("works on regular solids", () => {
-      expectApplyTo("cube")
-      expectApplyTo("dodecahedron")
-      expectApplyTo("truncated dodecahedron", false)
+  it("canApplyTo", () => {
+    validateOpInputs(snub, {
+      pass: ["cube", "dodecahedron"],
+      fail: ["truncated dodecahedron"],
     })
   })
 
-  describe("hasOptions", () => {
-    function expectHasOptions(name: string, value: boolean = true) {
-      expect(snub.hasOptions(Polyhedron.get(name))).toEqual(value)
-    }
-
-    it("true if not tetrahedron", () => {
-      expectHasOptions("cube")
-      expectHasOptions("icosahedron")
-      expectHasOptions("tetrahedron", false)
+  it("hasOptions", () => {
+    validateHasOptions(snub, {
+      pass: ["cube", "icosahedron", "tetrahedron"],
+      fail: [],
     })
   })
 })
 
 describe("dual", () => {
-  describe("canApplyTo", () => {
-    function expectApplyTo(name: string, value: boolean = true) {
-      expect(dual.canApplyTo(Polyhedron.get(name))).toEqual(value)
-    }
-    it("works on regular solids", () => {
-      expectApplyTo("cube")
-      expectApplyTo("dodecahedron")
-      expectApplyTo("truncated dodecahedron", false)
+  it("canApplyTo", () => {
+    validateOpInputs(dual, {
+      pass: ["cube", "dodecahedron", "tetrahedron"],
+      fail: ["truncated dodecahedron"],
     })
   })
 })
 
 describe("contract", () => {
-  function expectApplyTo(name: string, value: boolean = true) {
-    expect(contract.canApplyTo(Polyhedron.get(name))).toEqual(value)
-  }
-  describe("canApplyTo", () => {
-    it("works on cantellated polyhedra", () => {
-      expectApplyTo("cuboctahedron")
-      expectApplyTo("rhombicuboctahedron")
-      expectApplyTo("rhombicosidodecahedron")
+  it("canApplyTo", () => {
+    validateOpInputs(contract, {
+      pass: [
+        // cantellated solids
+        "rhombitetratetrahedron",
+        "rhombicuboctahedron",
+        "rhombicosidodecahedron",
+        // snub solids
+        "snub tetratetrahedron",
+        "snub cuboctahedron",
+        "snub icosidodecahedron",
+        // bevelled polyhedra
+        "truncated tetratetrahedron",
+        "truncated cuboctahedron",
+        "truncated icosidodecahedron",
+      ],
+      fail: [],
     })
+  })
 
-    it("works on snub polyhedra", () => {
-      expectApplyTo("icosahedron")
-      expectApplyTo("snub cube")
-      expectApplyTo("snub dodecahedron")
-    })
-
-    it("works on bevelled polyhedra", () => {
-      expectApplyTo("truncated octahedron")
-      expectApplyTo("truncated cuboctahedron")
-      expectApplyTo("truncated icosidodecahedron")
+  it("hasOptions", () => {
+    validateHasOptions(contract, {
+      // true for all
+      pass: [
+        "rhombicuboctahedron",
+        "snub icosidodecahedron",
+        "truncated tetratetrahedron",
+      ],
+      fail: [],
     })
   })
 })
 
 describe("twist", () => {
-  function expectApplyTo(name: string, value: boolean = true) {
-    expect(twist.canApplyTo(Polyhedron.get(name))).toEqual(value)
-  }
-
-  function expectHasOptions(name: string, value: boolean = true) {
-    expect(twist.hasOptions(Polyhedron.get(name))).toEqual(value)
-  }
-  describe("canApplyTo", () => {
-    it("works on cantellated and snub polyhedra", () => {
-      // cantellated
-      expectApplyTo("cuboctahedron")
-      expectApplyTo("rhombicuboctahedron")
-      expectApplyTo("rhombicosidodecahedron")
-
-      // snub
-      expectApplyTo("icosahedron")
-      expectApplyTo("snub cube")
-      expectApplyTo("snub dodecahedron")
+  it("canApplyTo", () => {
+    validateOpInputs(twist, {
+      pass: [
+        // cantellated
+        "rhombitetratetrahedron",
+        "rhombicuboctahedron",
+        "rhombicosidodecahedron",
+        // snub
+        "snub tetratetrahedron",
+        "snub cuboctahedron",
+        "snub icosidodecahedron",
+      ],
+      fail: [],
     })
   })
 
-  describe("hasOptions", () => {
-    it("works on cantellated polyhedra", () => {
-      expectHasOptions("rhombicuboctahedron")
-      expectHasOptions("rhombicosidodecahedron")
-
-      expectHasOptions("cuboctahedron", false)
-      expectHasOptions("icosahedron", false)
-      expectHasOptions("snub cube", false)
-      expectHasOptions("snub dodecahedron", false)
+  it("hasOptions", () => {
+    validateHasOptions(twist, {
+      pass: [
+        // cantellated
+        "rhombitetratetrahedron",
+        "rhombicuboctahedron",
+        "rhombicosidodecahedron",
+      ],
+      fail: [
+        // snub
+        "snub tetratetrahedron",
+        "snub cuboctahedron",
+        "snub icosidodecahedron",
+      ],
     })
   })
 })

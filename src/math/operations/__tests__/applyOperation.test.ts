@@ -1,16 +1,16 @@
 import { forEach } from "lodash-es"
-import { allSolidNames } from "data/common"
+import { fromSpecs } from "math/formes"
 import { operations } from ".."
-import { Polyhedron } from "math/polyhedra"
 import { validateOperationApplication } from "../operationTestUtils"
 
 describe("applyOperation", () => {
-  const polyhedra = allSolidNames.map((name) => Polyhedron.get(name))
   forEach(operations, (operation, opName) => {
     describe(opName, () => {
-      for (const polyhedron of polyhedra) {
+      // TODO determine solid names from the graph instead
+      for (const specs of operation.allInputs()) {
+        const polyhedron = fromSpecs(specs)
         if (operation.canApplyTo(polyhedron)) {
-          it(polyhedron.name, () => {
+          it(polyhedron.specs.name(), () => {
             for (const options of operation.allOptionCombos(polyhedron)) {
               validateOperationApplication(operation, polyhedron, options)
             }

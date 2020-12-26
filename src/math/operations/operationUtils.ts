@@ -1,29 +1,23 @@
 import { takeRight, dropRight, invert, isEmpty, uniq } from "lodash-es"
+import { Vector3, Matrix4 } from "three"
 import {
-  Cap,
   Polyhedron,
+  Facet,
   Edge,
   Vertex,
   VertexList,
   VertexArg,
 } from "math/polyhedra"
-import { Vec3D, Transform, PRECISION } from "math/geom"
+import { Transform, translateMat, scaleMat } from "math/geom"
 import { mapObject } from "utils"
-import PolyhedronSpecs from "data/specs/PolyhedronSpecs"
-import { Facet } from "data/specs/Classical"
-import { Twist } from "types"
-import { getAllSpecs } from "data/specs/getSpecs"
+import { PolyhedronSpecs, FacetType, Twist } from "specs"
 
 export interface FacetOpts {
-  facet?: Facet
+  facet: FacetType
 }
 
 export interface TwistOpts {
-  twist?: Twist
-}
-
-export function getOppTwist(twist: Twist) {
-  return twist === "left" ? "right" : "left"
+  twist: Twist
 }
 
 /**
@@ -41,49 +35,55 @@ export function oppositeFace(edge: Edge, twist?: Twist) {
   }
 }
 
+export type Axis = Vector3 | Facet
+
 /**
- * Get the chirality of the snub polyhedron
+ * Defines an orthonormal orientation.
+ * An orientation [u, v] defineds the basis [u, v, u x v]
  */
-export function snubChirality(geom: Polyhedron) {
-  // Special case for icosahedron
-  if (geom.largestFace().numSides === 3) {
-    return "left"
-  }
-  const face = geom.faces.find((f) => f.numSides !== 3)!
-  const other = oppositeFace(face.edges[0], "right")
-  return other.numSides !== 3 ? "right" : "left"
+export type Orientation = readonly [Axis, Axis]
+
+/**
+ * Defines a scale, origin, and orientation used to transform one polyhedron to another.
+ */
+export interface Pose {
+  scale: number
+  origin: Vector3
+  orientation: Orientation
 }
 
-/**
- * Get the chirality of the gyroelongated bicupola/rotunda
- */
-export function capstoneChirality(geom: Polyhedron) {
-  const [cap1, cap2] = Cap.getAll(geom)
-  const boundary = cap1.boundary()
-  const isCupolaRotunda = cap1.type !== cap2.type
-
-  const nonTriangleFaceEdge = boundary.edges.find((e) => e.face.numSides !== 3)!
-  const rightFaceAcross = oppositeFace(nonTriangleFaceEdge, "right")
-  // I'm pretty sure this is the same logic as in augment
-  if (isCupolaRotunda) {
-    return rightFaceAcross.numSides !== 3 ? "right" : "left"
-  }
-  return rightFaceAcross.numSides !== 3 ? "left" : "right"
+function normalizeAxis(u: Axis) {
+  return u instanceof Facet ? u.normal() : u
 }
 
-/**
- * Return all matching specs for the Polyhedron, with the right chiralities.
- */
-export function* getValidSpecs(geom: Polyhedron): Generator<PolyhedronSpecs> {
-  for (const specs of getAllSpecs(geom.name)) {
-    if (!specs.isChiral()) {
-      yield specs
-    } else if (specs.isClassical()) {
-      yield specs.withData({ twist: snubChirality(geom) })
-    } else if (specs.isCapstone()) {
-      yield specs.withData({ twist: capstoneChirality(geom) })
-    }
-  }
+function normalizeOrientation([u1, u2]: Orientation): [Vector3, Vector3] {
+  const _u1 = normalizeAxis(u1).clone().normalize()
+  const _u2 = normalizeAxis(u2).clone().projectOnPlane(_u1).normalize()
+  return [_u1, _u2]
+}
+
+function getTransform({ origin, scale, orientation }: Pose) {
+  const [u1, u2] = normalizeOrientation(orientation)
+  const translateM = translateMat(origin)
+  const scaleM = scaleMat(scale)
+  const rotationM = new Matrix4().makeBasis(u1, u2, u1.clone().cross(u2))
+  return rotationM.premultiply(scaleM).premultiply(translateM)
+}
+
+// Translate, rotate, and scale the polyhedron with the transformation given by the two poses
+export function alignPolyhedron(
+  solid: Polyhedron,
+  oldPose: Pose,
+  newPose: Pose,
+) {
+  const oldMat = getTransform(oldPose)
+  const newMat = getTransform(newPose)
+  const oldMatInv = oldMat.getInverse(oldMat)
+  // Un-apply the original pose, then apply the new pose
+  const newVertices = solid.vertices.map((v) =>
+    v.vec.clone().applyMatrix4(oldMatInv).applyMatrix4(newMat),
+  )
+  return solid.withVertices(newVertices)
 }
 
 /**
@@ -152,9 +152,7 @@ export function deduplicateVertices(polyhedron: Polyhedron) {
   const oldToNew: Record<number, number> = {}
 
   polyhedron.vertices.forEach((v, vIndex) => {
-    const match = unique.find((point) =>
-      v.vec.equalsWithTolerance(point.vec, PRECISION),
-    )
+    const match = unique.find((point) => v.isConcentric(point))
     if (match === undefined) {
       unique.push(v)
       oldToNew[vIndex] = vIndex
@@ -174,6 +172,16 @@ export function deduplicateVertices(polyhedron: Polyhedron) {
   return removeExtraneousVertices(polyhedron.withFaces(newFaces))
 }
 
+function normalizeTransform(t: Transform | Vector3 | Matrix4): Transform {
+  if (t instanceof Matrix4) {
+    return (v) => v.clone().applyMatrix4(t)
+  }
+  if (t instanceof Vector3) {
+    return () => t
+  }
+  return t
+}
+
 /**
  * Apply a transformation per vertex list. This function allows transformations like
  * "blow up these faces away from a center point" or "expand these faces out radially".
@@ -185,15 +193,15 @@ export function deduplicateVertices(polyhedron: Polyhedron) {
  * This defaults to the vertices of the polyhedron attached to the first `VertexList`.
  */
 export function getTransformedVertices<T extends VertexList>(
-  vLists: T[],
-  iteratee: (key: T) => Transform | Vec3D,
+  vLists: readonly T[],
+  iteratee: (key: T) => Vector3 | Matrix4,
   vertices: Vertex[] = vLists[0].polyhedron.vertices,
 ) {
   const result: VertexArg[] = [...vertices]
   for (const vList of vLists) {
     for (const v of vList.vertices) {
-      const t = iteratee(vList)
-      result[v.index] = typeof t === "function" ? t(v.vec) : t
+      const t = normalizeTransform(iteratee(vList))
+      result[v.index] = t(v.vec)
     }
   }
   return result

@@ -1,9 +1,9 @@
 import { findKey, countBy } from "lodash-es"
-import { Point } from "types"
-import { vec, Vec3D } from "math/geom"
+import { Vector3 } from "three"
+import { getCentroid } from "math/geom"
 import { VIndex } from "./solidTypes"
+import Facet from "./Facet"
 import type Polyhedron from "./Polyhedron"
-import Edge from "./Edge"
 import { splitAt } from "utils"
 
 function getCycles<T>(array: T[]) {
@@ -23,18 +23,17 @@ function arrayMin<T>(a1: T[], a2: T[]): T[] {
   return [h1, ...arrayMin(t1, t2)]
 }
 
-export default class Vertex {
-  polyhedron: Polyhedron
+export default class Vertex extends Facet {
   index: VIndex
-  value: Point
-  vec: Vec3D
+  vec: Vector3
 
   constructor(polyhedron: Polyhedron, index: VIndex) {
-    this.polyhedron = polyhedron
+    super(polyhedron)
     this.index = index
-    this.value = polyhedron._solidData.vertices[index]
-    this.vec = vec(this.value)
+    this.vec = polyhedron._solidData.vertices[index]
   }
+
+  vertices = [this]
 
   equals(other: Vertex) {
     return this.index === other.index
@@ -46,7 +45,7 @@ export default class Vertex {
 
   private *adjacentEdgesIter() {
     const v2 = parseInt(findKey(this.polyhedron.edgeToFaceGraph()[this.index])!)
-    const e0 = new Edge(this, this.polyhedron.vertices[v2])
+    const e0 = this.polyhedron.edgeToFaceGraph()[this.index][v2].edge
     let e = e0
     let count = 0
     do {
@@ -82,8 +81,8 @@ export default class Vertex {
     return countBy(this.adjacentFaces(), "numSides")
   }
 
-  distanceToCenter() {
-    return this.vec.distanceTo(this.polyhedron.centroid())
+  normal() {
+    return getCentroid(this.adjacentFaces().map((f) => f.normal())).normalize()
   }
 }
 

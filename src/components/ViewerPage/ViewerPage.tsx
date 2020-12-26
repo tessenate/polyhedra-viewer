@@ -9,8 +9,8 @@ import {
 
 import { escape, choose } from "utils"
 import { isValidSolid, allSolidNames } from "data/common"
-import { isAlternateName, getCanonicalName } from "data/alternates"
-import { isConwayNotation, fromConwayNotation } from "data/conway"
+import { isAlternateName } from "data/alternates"
+import { isConwayNotation, fromConwayNotation } from "./conway"
 
 import ErrorPage from "components/ErrorPage"
 import Viewer from "./Viewer"
@@ -24,10 +24,7 @@ function resolveSolidName(solid: string) {
   if (isConwayNotation(solid)) {
     return fromConwayNotation(solid)
   }
-  if (isAlternateName(solid)) {
-    return getCanonicalName(solid)
-  }
-  if (isValidSolid(solid)) {
+  if (isAlternateName(solid) || isValidSolid(solid)) {
     return solid
   }
   return null

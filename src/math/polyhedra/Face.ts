@@ -25,10 +25,9 @@ export default class Face extends FaceLike {
   // Return true if this face is the same as the given face (within a polyhedron)
   equals(other: Face) {
     return this.index === other.index
-    // return this.polyhedron === other.polyhedron && this.index === other.index;
   }
 
-  inSet(faces: Face[]) {
+  inSet(faces: readonly Face[]) {
     return faces.some((face) => this.equals(face))
   }
 

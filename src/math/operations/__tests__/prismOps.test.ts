@@ -1,159 +1,145 @@
 import { elongate, gyroelongate, shorten, turn } from "../prismOps"
-import { Polyhedron } from "math/polyhedra"
+import { validateOpInputs, validateHasOptions } from "../operationTestUtils"
 
 describe("elongate", () => {
-  describe("canApplyTo", () => {
-    function expectApplyTo(name: string, value: boolean = true) {
-      expect(elongate.canApplyTo(Polyhedron.get(name))).toEqual(value)
-    }
-
-    it("works on capstones", () => {
-      // only works on shortened capstones
-      expectApplyTo("tetrahedron")
-      expectApplyTo("square cupola")
-      expectApplyTo("pentagonal rotunda")
-      expectApplyTo("pentagonal bipyramid")
-      expectApplyTo("triangular orthobicupola")
-      expectApplyTo("pentagonal orthocupolarotunda")
-
-      expectApplyTo("elongated triangular pyramid", false)
-      expectApplyTo("gyroelongated pentagonal bicupola", false)
-
-      // doesn't work on fastigium
-      expectApplyTo("triangular prism", false)
-      expectApplyTo("gyrobifastigium", false)
+  it("canApplyTo", () => {
+    validateOpInputs(elongate, {
+      pass: [
+        // only works on shortened capstones
+        "triangular pyramid",
+        "square cupola",
+        "pentagonal rotunda",
+        "pentagonal bipyramid",
+        "triangular orthobicupola",
+        "pentagonal orthocupolarotunda",
+      ],
+      fail: [
+        "elongated triangular pyramid",
+        "gyroelongated pentagonal bicupola",
+        // doesn't work on fastigium
+        // triangular prism
+        "digonal gyrobicupola",
+      ],
     })
   })
 })
 
 describe("gyroelongate", () => {
-  describe("canApplyTo", () => {
-    function expectApplyTo(name: string, value: boolean = true) {
-      expect(gyroelongate.canApplyTo(Polyhedron.get(name))).toEqual(value)
-    }
-
-    it("works on capstones", () => {
-      expectApplyTo("square cupola")
-      expectApplyTo("pentagonal rotunda")
-      expectApplyTo("pentagonal bipyramid")
-      expectApplyTo("triangular orthobicupola")
-      expectApplyTo("pentagonal orthocupolarotunda")
-
-      expectApplyTo("elongated triangular pyramid", false)
-      expectApplyTo("gyroelongated pentagonal bicupola", false)
-
-      // doesn't work on fastigium
-      expectApplyTo("triangular prism", false)
-      expectApplyTo("gyrobifastigium", false)
-
-      // doesn't work on tetrahedra
-      expectApplyTo("tetrahedron", false)
-      expectApplyTo("triangular bipyramid", false)
+  it("canApplyTo", () => {
+    validateOpInputs(gyroelongate, {
+      pass: [
+        "square cupola",
+        "pentagonal rotunda",
+        "pentagonal bipyramid",
+        "triangular orthobicupola",
+        "pentagonal orthocupolarotunda",
+      ],
+      fail: [
+        // doesn't work when already elongated
+        "gyroelongated pentagonal bicupola",
+        // doesn't work on triangular pyramids
+        "triangular pyramid",
+        "triangular bipyramid",
+        "elongated triangular pyramid",
+        // doesn't work on fastigium
+        // "triangular prism"
+        "digonal gyrobicupola",
+      ],
     })
   })
 
-  describe("hasOptions", () => {
-    function expectHasOptions(name: string, value: boolean = true) {
-      expect(gyroelongate.hasOptions(Polyhedron.get(name))).toEqual(value)
-    }
-
-    describe("works on capstones", () => {
-      // only works on bicupolae/birotundae
-      expectHasOptions("square orthobicupola")
-      expectHasOptions("icosidodecahedron")
-      expectHasOptions("pentagonal orthocupolarotunda")
-
-      // false cases
-      expectHasOptions("pentagonal bipyramid", false)
-      expectHasOptions("pentagonal cupola", false)
+  it("hasOptions", () => {
+    validateHasOptions(gyroelongate, {
+      pass: [
+        // has options on bicupolae/birotundae
+        "square orthobicupola",
+        "pentagonal gyrobirotunda",
+        "pentagonal orthocupolarotunda",
+      ],
+      fail: ["pentagonal bipyramid", "pentagonal cupola"],
     })
+
+    // false cases
   })
 })
 
 describe("shorten", () => {
-  function expectApplyTo(name: string, value: boolean = true) {
-    expect(shorten.canApplyTo(Polyhedron.get(name))).toEqual(value)
-  }
+  it("canApplyTo", () => {
+    validateOpInputs(shorten, {
+      pass: [
+        "elongated square pyramid",
+        "elongated triangular cupola",
+        "gyroelongated pentagonal cupolarotunda",
+      ],
+      fail: [
+        // invalid on prisms and shortened capstones
+        "decagonal prism",
+        "square antiprism",
 
-  function expectHasOptions(name: string, value: boolean = true) {
-    expect(shorten.hasOptions(Polyhedron.get(name))).toEqual(value)
-  }
-
-  describe("canApplyTo", () => {
-    it("works on nonshortened capstones", () => {
-      // elongated and gyroelongated capstones
-      expectApplyTo("elongated square pyramid")
-      expectApplyTo("elongated triangular cupola")
-      expectApplyTo("gyroelongated pentagonal cupolarotunda")
-
-      // invalid on prisms and shortened capstones
-      expectApplyTo("decagonal prism", false)
-      expectApplyTo("square antiprism", false)
-
-      expectApplyTo("pentagonal cupola", false)
-      expectApplyTo("pentagonal bipyramid", false)
+        "pentagonal cupola",
+        "pentagonal bipyramid",
+      ],
     })
+    // elongated and gyroelongated capstones
   })
 
-  describe("hasOptions", () => {
-    it("true only if gyroelongated bicupola", () => {
-      // true only if gyroelongated bicupola
-      expectHasOptions("gyroelongated square bicupola")
-      expectHasOptions("gyroelongated pentagonal cupolarotunda")
-
-      // false for everything else
-      expectHasOptions("gyroelongated square cupola", false)
-      expectHasOptions("gyroelongated square bipyramid", false)
-      expectHasOptions("elongated square gyrobicupola", false)
+  it("hasOptions", () => {
+    validateHasOptions(shorten, {
+      pass: [
+        // true only if gyroelongated bicupola
+        "gyroelongated square bicupola",
+        "gyroelongated pentagonal cupolarotunda",
+      ],
+      fail: [
+        // false for everything else
+        "gyroelongated square cupola",
+        "gyroelongated square bipyramid",
+        "elongated square gyrobicupola",
+      ],
     })
   })
 })
 
 describe("turn", () => {
-  function expectApplyTo(name: string, value: boolean = true) {
-    expect(turn.canApplyTo(Polyhedron.get(name))).toEqual(value)
-  }
+  it("canApplyTo", () => {
+    validateOpInputs(turn, {
+      pass: [
+        // all prismatics except digonal
+        "square prism",
+        "triangular antiprism",
+        "pentagonal prism",
+        "octagonal antiprism",
+        // nonshortened capstones
+        "gyroelongated pentagonal pyramid",
+        "elongated square bipyramid",
+        "elongated square cupola",
+      ],
+      fail: [
+        "digonal antiprism",
+        // false cases
+        "square pyramid",
+        "pentagonal orthocupolarotunda",
 
-  function expectHasOptions(name: string, value: boolean = true) {
-    expect(turn.hasOptions(Polyhedron.get(name))).toEqual(value)
-  }
-
-  describe("canApplyTo", () => {
-    it("works on prismatics", () => {
-      expectApplyTo("cube")
-      expectApplyTo("octahedron")
-      expectApplyTo("pentagonal prism")
-      expectApplyTo("octagonal antiprism")
-
-      // false on digonal antiprism
-      expectApplyTo("tetrahedron", false)
-    })
-
-    it("works on nonshortened capstones", () => {
-      expectApplyTo("gyroelongated pentagonal pyramid")
-      expectApplyTo("elongated square bipyramid")
-      expectApplyTo("elongated square cupola")
-
-      // false cases
-      expectApplyTo("square pyramid", false)
-      expectApplyTo("pentagonal orthocupolarotunda", false)
-
-      // false on elongated triangular pyramid
-      expectApplyTo("elongated triangular pyramid", false)
-      expectApplyTo("elongated triangular bipyramid", false)
+        // false on elongated triangular pyramid
+        "elongated triangular pyramid",
+        "elongated triangular bipyramid",
+      ],
     })
   })
 
-  describe("hasOptions", () => {
-    it("is true only on bicupolae", () => {
-      expectHasOptions("elongated square gyrobicupola")
-      expectHasOptions("gyroelongated triangular bicupola")
-      expectHasOptions("elongated pentagonal gyrobirotunda")
-      expectHasOptions("gyroelongated pentagonal cupolarotunda")
-
-      expectHasOptions("pentagonal antiprism", false)
-      expectHasOptions("elongated square bipyramid", false)
-      expectHasOptions("gyroelongated square cupola", false)
+  it("hasOptions", () => {
+    validateHasOptions(turn, {
+      pass: [
+        "elongated square gyrobicupola",
+        "gyroelongated triangular bicupola",
+        "elongated pentagonal gyrobirotunda",
+        "gyroelongated pentagonal cupolarotunda",
+      ],
+      fail: [
+        "pentagonal antiprism",
+        "elongated square bipyramid",
+        "gyroelongated square cupola",
+      ],
     })
   })
 })

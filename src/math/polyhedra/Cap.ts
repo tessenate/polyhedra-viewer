@@ -1,22 +1,20 @@
-import { minBy, once, countBy, isEqual } from "lodash-es"
+import { once } from "lodash-es"
 
-import { flatMapUniq } from "utils"
-import { Vec3D } from "math/geom"
+import { flatMapUniq, find } from "utils"
+import { CapType, PolygonType, PrimaryPolygon } from "specs"
+import Facet from "./Facet"
 import type Polyhedron from "./Polyhedron"
 import type Face from "./Face"
 import type Vertex from "./Vertex"
-import type { VertexList } from "./Vertex"
 import type Edge from "./Edge"
 import FaceLike from "./FaceLike"
 
-type CapType = "pyramid" | "cupola" | "rotunda" | "fastigium"
-type FaceConfiguration = { [key: string]: number }
-
 // Find the boundary of a connected set of faces
 function getBoundary(faces: Face[]) {
-  const e0 = faces
-    .flatMap((f) => f.edges)
-    .find((e) => !e.twin().face.inSet(faces))!
+  const e0 = find(
+    faces.flatMap((f) => f.edges),
+    (e) => !e.twin().face.inSet(faces),
+  )!
 
   const result: Edge[] = []
   let e = e0
@@ -41,63 +39,50 @@ function getBoundary(faces: Face[]) {
   )
 }
 
+type CapBase = 2 | PrimaryPolygon
+
 interface Constructor<T> {
-  new (polyhedron: Polyhedron, arg: T): Cap
+  new (facet: T, base: CapBase): Cap
 }
-function createMapper<T>(mapper: (p: Polyhedron) => T[], Base: Constructor<T>) {
-  return (polyhedron: Polyhedron) => {
-    // const mapper = polyhedron[property]
-    const values: T[] = mapper(polyhedron)
-    return values
-      .map((arg) => new Base(polyhedron, arg))
-      .filter((cap) => cap.isValid())
-  }
-}
-
-export default abstract class Cap implements VertexList {
-  polyhedron: Polyhedron
-  type: string
-  private _innerVertices: Vertex[]
-  private topPoint: Vec3D
-  private faceConfiguration: FaceConfiguration
-
-  static find(polyhedron: Polyhedron, hitPoint: Vec3D) {
-    const hitFace = polyhedron.hitFace(hitPoint)
-    const caps = Cap.getAll(polyhedron).filter((cap) =>
-      hitFace.inSet(cap.faces()),
-    )
-    if (caps.length === 0) {
-      return null
+function createMapper<T>(
+  mapper: (p: Polyhedron, base: CapBase) => T[],
+  Base: Constructor<T>,
+) {
+  return function* (polyhedron: Polyhedron, opts: CapSearchOpts) {
+    for (const value of mapper(polyhedron, opts.base)) {
+      yield new Base(value, opts.base)
     }
-    return minBy(caps, (cap) => cap.topPoint.distanceTo(hitPoint))
+  }
+}
+
+export interface CapSearchOpts {
+  base: CapBase
+  type: PolygonType
+  rotunda?: boolean
+  fastigium?: boolean
+}
+
+export default abstract class Cap extends Facet {
+  type: CapType
+  private _innerVertices: Vertex[]
+
+  static *getAll(polyhedron: Polyhedron, opts: CapSearchOpts) {
+    if (opts.type === "primary") {
+      yield* Pyramid.getAll(polyhedron, opts)
+    } else if (opts.fastigium) {
+      yield* Fastigium.getAll(polyhedron, opts)
+    } else {
+      yield* Cupola.getAll(polyhedron, opts)
+      if (opts.rotunda) {
+        yield* Rotunda.getAll(polyhedron, opts)
+      }
+    }
   }
 
-  static getAll(polyhedron: Polyhedron): Cap[] {
-    const pyramids = Pyramid.getAll(polyhedron)
-    if (pyramids.length > 0) return pyramids
-
-    const fastigium = Fastigium.getAll(polyhedron)
-    if (fastigium.length > 0) return fastigium
-
-    const cupolaRotunda = Cupola.getAll(polyhedron).concat(
-      Rotunda.getAll(polyhedron),
-    )
-    if (cupolaRotunda.length > 0) return cupolaRotunda
-    return []
-  }
-
-  constructor(
-    polyhedron: Polyhedron,
-    innerVertices: Vertex[],
-    type: CapType,
-    topPoint: Vec3D,
-    faceConfiguration: FaceConfiguration,
-  ) {
-    this.polyhedron = polyhedron
+  constructor(innerVertices: Vertex[], type: CapType) {
+    super(innerVertices[0].polyhedron)
     this._innerVertices = innerVertices
     this.type = type
-    this.topPoint = topPoint
-    this.faceConfiguration = faceConfiguration
   }
 
   innerVertices() {
@@ -108,9 +93,13 @@ export default abstract class Cap implements VertexList {
     return this.allVertices()
   }
 
-  allVertices = once(() => {
+  private allVertices = once(() => {
     return this.innerVertices().concat(this.boundary().vertices)
   })
+
+  topFace(): Face {
+    throw new Error(`Cap type ${this.type} does not have a top face`)
+  }
 
   faces = once(() => {
     return flatMapUniq(this.innerVertices(), (v) => v.adjacentFaces(), "index")
@@ -120,66 +109,84 @@ export default abstract class Cap implements VertexList {
     return getBoundary(this.faces())
   })
 
-  normal() {
-    return this.boundary().normal()
-  }
+  // NOTE for convenience, this calculates the centroid of the *boundary* not of all the vertices
+  centroid = () => this.boundary().centroid()
 
-  normalRay() {
-    return this.boundary().normalRay()
-  }
+  normal = () => this.boundary().normal()
 
-  isValid() {
-    const matchFaces = this.innerVertices().every((vertex) => {
-      const faceCount = countBy(vertex.adjacentFaces(), "numSides")
-      return isEqual(faceCount, this.faceConfiguration)
-    })
-    return (
-      matchFaces &&
-      this.faces().every((face) => face.isValid()) &&
-      this.boundary().isPlanar()
-    )
-  }
+  adjacentFaces = () => this.boundary().adjacentFaces()
 }
 
 class Pyramid extends Cap {
-  constructor(polyhedron: Polyhedron, vertex: Vertex) {
-    super(polyhedron, [vertex], "pyramid", vertex.vec, {
-      "3": vertex.adjacentEdges().length,
-    })
+  constructor(vertex: Vertex, base: CapBase) {
+    super([vertex], "pyramid")
   }
-  static getAll = createMapper((p) => p.vertices, Pyramid)
+  static getAll = createMapper(
+    (p, base) =>
+      p.vertices.filter((v) => {
+        const faces = v.adjacentFaces()
+        return faces.length === base && faces.every((f) => f.numSides === 3)
+      }),
+    Pyramid,
+  )
 }
 
 class Fastigium extends Cap {
-  constructor(polyhedron: Polyhedron, edge: Edge) {
-    const config = { "3": 1, "4": 2 }
-    super(polyhedron, edge.vertices, "fastigium", edge.midpoint(), config)
+  constructor(edge: Edge, base: CapBase) {
+    super(edge.vertices, "cupola")
   }
-  static getAll = createMapper((p) => p.edges, Fastigium)
+  static getAll = createMapper(
+    (p, base) =>
+      p.edges.filter((e) => e.adjacentFaces().every((f) => f.numSides === 4)),
+    Fastigium,
+  )
 }
 
 class Cupola extends Cap {
-  constructor(polyhedron: Polyhedron, face: Face) {
-    super(
-      polyhedron,
-      face.vertices,
-      "cupola",
-      face.centroid(),
-      countBy([3, 4, 4, face.numSides]),
-    )
+  private _topFace: Face
+  constructor(face: Face, base: CapBase) {
+    super(face.vertices, "cupola")
+    this._topFace = face
   }
-  static getAll = createMapper((p) => p.faces, Cupola)
+
+  topFace() {
+    return this._topFace
+  }
+
+  static getAll = createMapper(
+    (p, base) =>
+      p
+        .facesWithNumSides(base)
+        .filter((f) => f.adjacentFaces().every((f2) => f2.numSides === 4)),
+    Cupola,
+  )
 }
 
 class Rotunda extends Cap {
-  constructor(polyhedron: Polyhedron, face: Face) {
+  private _topFace: Face
+  constructor(face: Face, base: CapBase) {
     super(
-      polyhedron,
       flatMapUniq(face.vertices, (v) => v.adjacentVertices(), "index"),
       "rotunda",
-      face.centroid(),
-      { "5": 2, "3": 2 },
     )
+    this._topFace = face
   }
-  static getAll = createMapper((p) => p.faces, Rotunda)
+
+  topFace() {
+    return this._topFace
+  }
+
+  static getAll = createMapper(
+    (p) =>
+      p.facesWithNumSides(5).filter((face) => {
+        return face
+          .adjacentFaces()
+          .every(
+            (f3) =>
+              f3.numSides === 3 &&
+              f3.adjacentFaces().every((f5) => f5.numSides === 5),
+          )
+      }),
+    Rotunda,
+  )
 }

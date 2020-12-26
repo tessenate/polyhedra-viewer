@@ -1,16 +1,11 @@
-import { useMemo } from "react"
-import tinycolor from "tinycolor2"
-import Config from "components/ConfigCtx"
+import { Color } from "three"
+import { useMemo, useCallback } from "react"
 import { PolyhedronCtx, OperationCtx, TransitionCtx } from "../../context"
-
-function toRgb(hex: string) {
-  const { r, g, b } = tinycolor(hex).toRgb()
-  return [r / 255, g / 255, b / 255]
-}
+import { Polyhedron, Face } from "math/polyhedra"
+import getFormeColors, { Appearance, mixColor, lighten } from "./getFormeColors"
 
 // Hook that takes data from Polyhedron and Animation states and decides which to use.
 export default function useSolidContext() {
-  const { colors } = Config.useState()
   const polyhedron = PolyhedronCtx.useState()
 
   const {
@@ -20,43 +15,60 @@ export default function useSolidContext() {
   } = TransitionCtx.useState()
   const { operation, options = {} } = OperationCtx.useState()
 
-  // TODO I'm trying to useMemo here so it's similar to reselect?
-  // but is that a bad idea?
+  const getSelectionColor = useCallback(
+    (face: Face, appearance: Appearance) => {
+      if (!operation) return appearance
+      switch (operation.selectionState(face, polyhedron, options)) {
+        case "selected":
+          return mixColor(appearance, (c) => lighten(c, 25))
+        case "selectable":
+          return mixColor(appearance, (c) => lighten(c, 10))
+        default:
+          return appearance
+      }
+    },
+    [operation, options, polyhedron],
+  )
+
+  const formeColors = useMemo(() => {
+    // FIXME not this isn't working right now
+    return polyhedron.geom.faces.map((f) =>
+      getSelectionColor(f, getFormeColors(polyhedron, f)),
+    )
+  }, [polyhedron, getSelectionColor])
 
   // Colors when animation is being applied
-  const transitionColors = useMemo(
-    () =>
-      isTransitioning &&
-      solidData!.faces.map((face, i) => faceColors[i] || colors[face.length]),
-    [solidData, faceColors, colors, isTransitioning],
-  )
+  const transitionColors = useMemo(() => {
+    return (
+      isTransitioning && faceColors.map((color) => ({ color, material: 0 }))
+    )
+  }, [faceColors, isTransitioning])
+  const geom: Polyhedron = polyhedron.geom
 
   // Colors when in operation mode and hit options are being selected
   const operationColors = useMemo(() => {
-    if (!operation) return
-    const selectState = operation.faceSelectionStates(polyhedron, options)
-    return polyhedron.faces.map((face, i) => {
-      switch (selectState[i]) {
-        case "selected":
-          return tinycolor.mix(colors[face.numSides], "lime")
-        case "selectable":
-          return tinycolor.mix(colors[face.numSides], "yellow", 25)
-        default:
-          return colors[face.numSides]
-      }
-    })
-  }, [polyhedron, operation, options, colors])
+    return geom.faces.map((face) =>
+      getSelectionColor(face, {
+        color: new Color(),
+        material: 0,
+      }),
+    )
+  }, [geom.faces, getSelectionColor])
 
-  const normalizedColors = useMemo(() => {
-    const rawColors =
+  const normalizedColors: Appearance[] = useMemo(() => {
+    return (
       transitionColors ||
+      formeColors ||
       operationColors ||
-      polyhedron.faces.map((f) => colors[f.numSides])
-    return rawColors.map(toRgb)
-  }, [transitionColors, operationColors, polyhedron, colors])
+      geom.faces.map((f) => ({
+        color: new Color(),
+        material: 0,
+      }))
+    )
+  }, [formeColors, transitionColors, operationColors, geom])
 
   return {
     colors: normalizedColors,
-    solidData: isTransitioning ? solidData! : polyhedron.solidData,
+    solidData: isTransitioning ? solidData! : polyhedron.geom.solidData,
   }
 }

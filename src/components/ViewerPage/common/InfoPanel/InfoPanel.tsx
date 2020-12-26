@@ -4,7 +4,6 @@ import { capitalize } from "lodash-es"
 
 import { fonts } from "styles"
 
-import getSpecs from "data/specs/getSpecs"
 import { PolyhedronCtx } from "components/ViewerPage/context"
 import DataDownloader from "../DataDownloader"
 import { flexColumn } from "styles/common"
@@ -50,15 +49,18 @@ export default function InfoPanel() {
     [media.notMobile]: { marginTop: "auto" },
   })
 
-  const info = getSpecs(polyhedron.name)
+  const info = polyhedron.specs
 
   return (
     <div {...css()}>
-      <Heading polyhedron={polyhedron} info={info} />
+      <Heading polyhedron={polyhedron.geom} info={info} />
       <p {...typeCss()}>{info.group()}</p>
-      <DataList polyhedron={polyhedron} info={info} />
+      <DataList polyhedron={polyhedron.geom} info={info} />
       <div {...downloaderCss()}>
-        <DataDownloader solid={polyhedron.solidData} />
+        <DataDownloader
+          name={polyhedron.specs.name()}
+          solid={polyhedron.geom.rawSolidData()}
+        />
       </div>
     </div>
   )

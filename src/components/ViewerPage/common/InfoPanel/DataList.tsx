@@ -1,7 +1,9 @@
 import React, { ComponentType } from "react"
 import { round } from "lodash-es"
-import { useStyle, scales } from "styles"
-import { fonts } from "styles"
+import { Link } from "react-router-dom"
+
+import { escape } from "utils"
+import { fonts, useStyle, scales } from "styles"
 
 import {
   Sup,
@@ -89,7 +91,9 @@ const infoRows: InfoRow[] = [
       return (
         <ul>
           {alts.map((alt) => (
-            <li key={alt}>{alt}</li>
+            <li key={alt}>
+              <Link to={`/${escape(alt)}/info`}>{alt}</Link>
+            </li>
           ))}
         </ul>
       )

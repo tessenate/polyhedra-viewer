@@ -8,6 +8,7 @@ function Title({ name }: { name: string }) {
   const css = useStyle({
     fontFamily: fonts.andaleMono,
     fontSize: scales.font[2],
+    color: "white",
 
     [media.notMobile]: {
       fontWeight: "bold",

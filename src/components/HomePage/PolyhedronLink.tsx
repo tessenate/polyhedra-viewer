@@ -4,17 +4,18 @@ import { Link } from "react-router-dom"
 import { escape } from "utils"
 import { square, hover, flexRow } from "styles/common"
 import { useStyle, media } from "styles"
+import { PolyhedronSpecs } from "specs"
 
 interface Props {
-  name: string
-  isFake: boolean
+  specs: PolyhedronSpecs
+  isDuplicate: boolean
 }
 
 // using raw pixel values since we need to do math
 const thumbnailSize = 64
 const mobThumbnailSize = 48
 
-function Image({ name }: Pick<Props, "name">) {
+function Image({ name }: { name: string }) {
   const css = useStyle({
     ...flexRow("center", "center"),
     [media.notMobile]: {
@@ -34,13 +35,13 @@ function Image({ name }: Pick<Props, "name">) {
   )
 }
 
-export default function PolyhedronLink({ name, isFake }: Props) {
-  const escapedName = escape(name)
+export default function PolyhedronLink({ specs, isDuplicate }: Props) {
+  const escapedName = escape(specs.name())
 
   const css = useStyle(
     {
       ...hover,
-      ...(isFake ? { opacity: 0.5, filter: "grayscale(50%)" } : {}),
+      ...(isDuplicate ? { opacity: 0.5, filter: "grayscale(50%)" } : {}),
       ...flexRow("center", "center"),
       border: "1px LightGray solid",
       color: "black",
@@ -50,16 +51,16 @@ export default function PolyhedronLink({ name, isFake }: Props) {
       [media.notMobile]: square(thumbnailSize),
       [media.mobile]: square(mobThumbnailSize),
     },
-    [isFake],
+    [isDuplicate],
   )
   return (
     <Link
       {...css()}
-      id={!isFake ? escapedName : undefined}
+      id={!isDuplicate ? escapedName : undefined}
       to={"/" + escapedName}
-      title={name}
+      title={specs.name()}
     >
-      <Image name={name} />
+      <Image name={escape(specs.canonicalName())} />
     </Link>
   )
 }

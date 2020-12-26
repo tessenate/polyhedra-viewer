@@ -1,11 +1,11 @@
 import { useCallback } from "react"
 import { Operation } from "math/operations"
-import { Polyhedron } from "math/polyhedra"
+import { PolyhedronForme } from "math/formes"
 import PolyhedronCtx from "./PolyhedronCtx"
 import OperationCtx from "./OperationCtx"
 import TransitionCtx from "./TransitionCtx"
 
-type ResultCallback = (polyhedron: Polyhedron) => void
+type ResultCallback = (polyhedron: PolyhedronForme) => void
 
 // TODO figure out stricter typing here
 type Options = any

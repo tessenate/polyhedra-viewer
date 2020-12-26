@@ -5,7 +5,7 @@ import { useStyle, scales } from "styles"
 import { SrOnly } from "components/common"
 import { fonts } from "styles"
 
-import { SolidData } from "math/polyhedra"
+import { RawSolidData } from "math/polyhedra"
 import { hover } from "styles/common"
 import { mdiDownload } from "@mdi/js"
 
@@ -21,7 +21,7 @@ function fToObj(face: number[]) {
   return "f " + face.map((i) => i + 1).join(" ")
 }
 
-function toObj({ vertices, faces }: SolidData) {
+function toObj({ vertices, faces }: RawSolidData) {
   const vObj = vertices.map(vToObj)
   const fObj = faces.map(fToObj)
   return vObj.concat(fObj).join("\n")
@@ -39,15 +39,17 @@ const fileFormats = [
 ]
 
 interface Props {
-  solid: SolidData
+  name: string
+  solid: RawSolidData
 }
 
 function DownloadLink({
   ext,
   serializer,
   solid,
+  name,
 }: typeof fileFormats[0] & Props) {
-  const filename = `${solid.name}.${ext}`
+  const filename = `${name}.${ext}`
   const blob = new Blob([serializer(solid)], {
     type: "text/plain;charset=utf-8",
   })
@@ -80,7 +82,7 @@ function DownloadLink({
   )
 }
 
-export default function DataDownloader({ solid }: Props) {
+export default function DataDownloader({ solid, name }: Props) {
   const heading = useStyle({
     fontFamily: fonts.times,
     fontSize: scales.font[4],
@@ -91,7 +93,12 @@ export default function DataDownloader({ solid }: Props) {
       <h2 {...heading()}>Download model</h2>
       <div>
         {fileFormats.map((format) => (
-          <DownloadLink key={format.ext} {...format} solid={solid} />
+          <DownloadLink
+            key={format.ext}
+            {...format}
+            name={name}
+            solid={solid}
+          />
         ))}
       </div>
     </div>

@@ -1,2 +1,2 @@
-import SolidScene from "./SolidScene"
-export default SolidScene
+import ViewerScene from "./ViewerScene"
+export default ViewerScene

@@ -2,20 +2,12 @@ import React from "react"
 import { CSSProperties } from "aphrodite"
 import { useStyle, scales } from "styles"
 
-import { Table } from "data/oldTables"
+import { Table, TableSection as TableSectionType } from "tables"
 import { media, fonts } from "styles"
+import * as text from "./text"
 import Description from "./Description"
 import PolyhedronTable from "./PolyhedronTable"
-import { TableSection as TableSectionType } from "./tableSections"
 import { flexColumn, paddingHoriz } from "styles/common"
-
-const sectionMapping: Record<string, string> = {
-  "Uniform Polyhedra": "uniform",
-  "Johnson Solids": "johnson",
-  "Pyramids, Cupolæ, and Rotundæ": "capstones",
-  "Augmented, Diminished, and Gyrate Polyhedra": "cutPaste",
-  "Elementary Johnson Solids": "elementary",
-}
 
 const gridAreaMapping: Record<string, string> = {
   "Platonic and Archimedean Solids": "plato",
@@ -52,7 +44,7 @@ const sectionStyles: Record<string, CSSProperties> = {
     },
   },
 
-  cutPaste: {
+  composite: {
     gridTemplateAreas: `
       "aug"
       "icos"
@@ -95,15 +87,16 @@ const GridArea = ({ area, data }: { area: string; data: Table }) => {
 }
 
 const TableGrid = ({
+  id,
   tables,
   header,
-}: Pick<TableSectionType, "tables" | "header">) => {
+}: Pick<TableSectionType, "id" | "tables" | "header">) => {
   const css = useStyle(
     {
       display: "grid",
       gridGap: scales.spacing[4],
       justifyItems: "center",
-      ...sectionStyles[sectionMapping[header]],
+      ...sectionStyles[id],
     },
     [header],
   )
@@ -138,14 +131,7 @@ export default function TableSection({
   narrow = false,
   isSubsection = false,
 }: Props) {
-  const {
-    header,
-    description,
-    tables,
-    narrowTables,
-    subsections,
-    sticky,
-  } = data
+  const { id, header, tables, narrowTables, subsections, sticky } = data
 
   const css = useStyle({
     ...flexColumn("center"),
@@ -167,10 +153,15 @@ export default function TableSection({
     <section {...css()}>
       <div {...textCss()}>
         <Heading subsection={isSubsection} text={header} />
-        <Description title={header} content={description} collapsed={!sticky} />
+        <Description
+          title={header}
+          content={(text as any)[id]}
+          collapsed={!sticky}
+        />
       </div>
       {tables && (
         <TableGrid
+          id={id}
           header={header}
           tables={narrow ? narrowTables ?? tables : tables}
         />

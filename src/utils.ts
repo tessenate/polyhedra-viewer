@@ -1,9 +1,8 @@
-import { ValueIteratee } from "lodash"
+import type { ValueIteratee } from "lodash"
 import { uniqBy } from "lodash-es"
+import { MathUtils } from "three"
 
-function mod(a: number, b: number) {
-  return a >= 0 ? a % b : (a % b) + b
-}
+const mod = MathUtils.euclideanModulo
 
 /**
  * Get the element of the array at the given index, modulo its length
@@ -35,6 +34,16 @@ export function flatMapUniq<T, U>(
   iteratee2: ValueIteratee<U>,
 ) {
   return uniqBy(arr.flatMap(iteratee1), iteratee2)
+}
+
+/**
+ * Wrapper over `find` that throws an error if no elements match the predicate.
+ */
+export function find<T>(iter: Iterable<T>, predicate: (item: T) => boolean) {
+  for (const item of iter) {
+    if (predicate(item)) return item
+  }
+  throw new Error(`Could not find item in ${iter} matching ${predicate}`)
 }
 
 /**
@@ -71,3 +80,16 @@ export function pivot<T>(list: T[], value: T) {
 }
 
 export const escape = (str: string) => str.replace(/ /g, "-")
+
+export type EntryIters<T> = { [K in keyof T]: Iterable<T[K]> }
+export function* cartesian<T>(itemLists: EntryIters<T>): Generator<T> {
+  const keys = Object.keys(itemLists)
+  if (keys.length === 0) return
+  const key = keys[0]
+  const { [key]: items, ...remainingLists } = itemLists as Record<string, any>
+  for (const item of items) {
+    for (const rest of cartesian(remainingLists)) {
+      yield { [key]: item, ...rest } as T
+    }
+  }
+}

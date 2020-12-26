@@ -2,12 +2,13 @@ import React, { useEffect } from "react"
 import { useLocation } from "react-router-dom"
 
 import { useStyle, scales } from "styles"
+import { tableSections } from "tables"
+
 import useMediaInfo from "components/useMediaInfo"
 import { usePageTitle } from "components/common"
 
 import Markdown from "./Markdown"
 import TableSection from "./TableSection"
-import tableSections from "./tableSections"
 import * as text from "./text"
 import Masthead from "./Masthead"
 import ShareLinks from "./ShareLinks"

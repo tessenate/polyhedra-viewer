@@ -20,12 +20,13 @@ function Scene({ solid, full }: Pick<Props, "solid"> & { full: boolean }) {
       width: full ? "100%" : `calc(100% - ${sidebarW})`,
       height: "100%",
       alignSelf: "flex-start",
+      backgroundColor: "#111",
     },
     [full],
   )
   return (
     <div {...css()}>
-      <SolidScene label={solid} />
+      <SolidScene />
       <Overlay solid={solid} />
     </div>
   )

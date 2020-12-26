@@ -1,27 +1,22 @@
 import * as d3 from "d3-ease"
-import { interpolate } from "d3-interpolate"
 
-export interface TransitionOptions<T> {
-  startValue: T
-  endValue: T
+export interface TransitionOptions {
   duration: number
   ease: keyof typeof d3
   onFinish(): void
 }
 
-export type Callback<T> = (val: T) => void
+export type Callback = (val: number) => void
 
 /**
  * An animation function based on d3's interpolate.
  * @returns an cancel() function
  */
-export default function transition<T extends object>(
-  options: TransitionOptions<T>,
-  updateCallback: Callback<T>,
+export default function transition(
+  options: TransitionOptions,
+  updateCallback: Callback,
 ) {
   const {
-    startValue,
-    endValue,
     // Duration, in milliseconds
     duration,
     ease,
@@ -31,15 +26,13 @@ export default function transition<T extends object>(
   const id: { current?: number } = {}
   // Adapted from:
   // https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
-  const interp = interpolate(startValue, endValue)
   const step = (timestamp: number) => {
     if (!start) {
       start = timestamp
     }
     const delta = timestamp - start
     const progress = Math.min(delta / duration, 1)
-    const currentValue = interp(d3[ease](progress))
-    updateCallback(currentValue)
+    updateCallback(d3[ease](progress))
     if (delta < duration) {
       id.current = requestAnimationFrame(step)
     } else {

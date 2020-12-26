@@ -1,8 +1,8 @@
 import Polyhedron from "../Polyhedron"
-import { SolidData } from "../solidTypes"
+import { RawSolidData } from "../solidTypes"
 
 describe("Polyhedron", () => {
-  const solidData: SolidData = {
+  const solidData: RawSolidData = {
     vertices: [
       [1, 1, 1],
       [-1, -1, 1],
@@ -15,9 +15,8 @@ describe("Polyhedron", () => {
       [0, 2, 3],
       [1, 3, 2],
     ],
-    name: "tetrahedron",
   }
-  const polyhedron = new Polyhedron(solidData)
+  const polyhedron = Polyhedron.fromRawData(solidData)
 
   describe("edges", () => {
     it("populates on load if not provided", () => {

@@ -1,15 +1,15 @@
+import { once } from "lodash"
 import { angleBetween, getMidpoint } from "math/geom"
-import type Polyhedron from "./Polyhedron"
+import Facet from "./Facet"
 import type Vertex from "./Vertex"
-import type { VertexList } from "./Vertex"
+import { find } from "utils"
 
-export default class Edge implements VertexList {
-  polyhedron: Polyhedron
+export default class Edge extends Facet {
   v1: Vertex
   v2: Vertex
 
   constructor(v1: Vertex, v2: Vertex) {
-    this.polyhedron = v1.polyhedron
+    super(v1.polyhedron)
     this.v1 = v1
     this.v2 = v2
   }
@@ -23,28 +23,39 @@ export default class Edge implements VertexList {
   }
 
   get face() {
-    return this.polyhedron.edgeToFaceGraph()[this.v1.index][this.v2.index]
+    return this.polyhedron.edgeToFaceGraph()[this.v1.index][this.v2.index]?.face
   }
 
   prev() {
-    return this.face.edges.find((e) => e.v2.equals(this.v1))!
+    return find(this.face.edges, (e) => e.v2.equals(this.v1))
   }
 
   next() {
-    return this.face.edges.find((e) => e.v1.equals(this.v2))!
+    return find(this.face.edges, (e) => e.v1.equals(this.v2))
   }
 
   length() {
     return this.v1.vec.distanceTo(this.v2.vec)
   }
 
-  midpoint() {
-    return getMidpoint(this.v1.vec, this.v2.vec)
+  isValid() {
+    return !this.v1.isConcentric(this.v2)
   }
 
-  twin() {
-    return new Edge(this.v2, this.v1)
+  midpoint() {
+    return this.centroid()
   }
+
+  twin = once(() => {
+    const entry = this.polyhedron.edgeToFaceGraph()[this.v2.index][
+      this.v1.index
+    ]
+    // TODO add this to the graph if necessary? figure out why it's failing?
+    if (!entry) {
+      return new Edge(this.v2, this.v1)
+    }
+    return entry.edge
+  })
 
   twinFace() {
     return this.twin().face
@@ -61,11 +72,6 @@ export default class Edge implements VertexList {
     return [this.face, this.twin().face]
   }
 
-  // Distance of this midpoint to polyhedron center
-  distanceToCenter() {
-    return this.midpoint().distanceTo(this.polyhedron.centroid())
-  }
-
   dihedralAngle() {
     return angleBetween(
       this.midpoint(),
@@ -73,6 +79,10 @@ export default class Edge implements VertexList {
       this.twinFace().centroid(),
     )
   }
+
+  normal = once(() => {
+    return getMidpoint(this.face.normal(), this.twinFace().normal()).normalize()
+  })
 
   equals(edge: Edge) {
     return this.v1.equals(edge.v1) && this.v2.equals(edge.v2)

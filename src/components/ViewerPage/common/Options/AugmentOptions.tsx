@@ -6,21 +6,6 @@ import OptionIcon from "./OptionIcon"
 import { verdana } from "styles/fonts"
 import { hover, square, flexRow, flexColumn } from "styles/common"
 
-const getOptionName = (optValue: string) => {
-  switch (optValue) {
-    case "U2":
-      return "fastigium"
-    case "Y4":
-      return "pyramid"
-    case "U5":
-      return "cupola"
-    case "R5":
-      return "rotunda"
-    default:
-      return optValue
-  }
-}
-
 interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   optValue: string
   selected: boolean
@@ -39,8 +24,8 @@ function OptionButton({ optValue, selected, ...htmlProps }: BtnProps) {
   )
   return (
     <button {...htmlProps} {...css()}>
-      <OptionIcon name={getOptionName(optValue)} />
-      {getOptionName(optValue)}
+      <OptionIcon name={optValue} />
+      {optValue}
     </button>
   )
 }
@@ -65,9 +50,11 @@ export default function AugmentOptions() {
     <div {...css()}>
       {["gyrate", "using"].map((name) => {
         const value = options![name]
+        const optValues = operation?.allOptions(polyhedron, name)
+        if (!optValues || optValues.length < 2) return null
         return (
           <div key={name} {...optionCss()}>
-            {operation?.allOptions(polyhedron, name).map((optValue) => (
+            {optValues.map((optValue) => (
               <OptionButton
                 key={optValue}
                 optValue={optValue}

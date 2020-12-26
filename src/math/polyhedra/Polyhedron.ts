@@ -8,17 +8,22 @@ import {
   sum,
   isEqual,
 } from "lodash-es"
+import { Vector3 } from "three"
 
+import { Point } from "types"
 import { getSolidData } from "data/common"
-import { polygons } from "data/polygons"
-import { Vec3D, getCentroid } from "math/geom"
+import { polygons } from "specs"
+import { getCentroid } from "math/geom"
 
-import { SolidData } from "./solidTypes"
+import { SolidData, RawSolidData } from "./solidTypes"
 import Face from "./Face"
 import Vertex from "./Vertex"
 import Edge from "./Edge"
+import Cap, { CapSearchOpts } from "./Cap"
 import Builder from "./SolidBuilder"
 import { VertexArg, FaceArg } from "./SolidBuilder"
+import { find } from "utils"
+const { PI, cbrt } = Math
 
 function calculateEdges(faces: Face[]) {
   return faces
@@ -28,14 +33,9 @@ function calculateEdges(faces: Face[]) {
 
 export default class Polyhedron {
   _solidData: SolidData
-  name: string
   faces: Face[]
   vertices: Vertex[]
   private _edges?: Edge[]
-
-  static get(name: string) {
-    return new Polyhedron(getSolidData(name))
-  }
 
   constructor(solidData: SolidData) {
     this._solidData = solidData
@@ -43,7 +43,17 @@ export default class Polyhedron {
       (vertex, vIndex) => new Vertex(this, vIndex),
     )
     this.faces = solidData.faces.map((face, fIndex) => new Face(this, fIndex))
-    this.name = solidData.name ?? ""
+  }
+
+  static fromRawData(data: RawSolidData) {
+    return new Polyhedron({
+      ...data,
+      vertices: data.vertices.map((v) => new Vector3(...v)),
+    })
+  }
+
+  static get(name: string) {
+    return this.fromRawData(getSolidData(name))
   }
 
   get edges() {
@@ -60,6 +70,13 @@ export default class Polyhedron {
     return this._solidData
   }
 
+  rawSolidData(): RawSolidData {
+    return {
+      ...this.solidData,
+      vertices: this.vertices.map((v) => v.vec.toArray() as Point),
+    }
+  }
+
   toString() {
     return `Polyhedron { V=${this.numVertices()}, E=${this.numEdges()}, F=${this.numFaces()} }`
   }
@@ -70,10 +87,15 @@ export default class Polyhedron {
 
   // Memoized mapping of edges to faces, used for quickly finding adjacency
   edgeToFaceGraph = once(() => {
-    const edgesToFaces: NestedRecord<number, number, Face> = {}
+    const edgesToFaces: NestedRecord<
+      number,
+      number,
+      { edge: Edge; face: Face }
+    > = {}
     for (const face of this.faces) {
-      for (const { v1, v2 } of face.edges) {
-        set(edgesToFaces, [v1.index, v2.index], face)
+      for (const edge of face.edges) {
+        const { v1, v2 } = edge
+        set(edgesToFaces, [v1.index, v2.index], { edge, face })
       }
     }
     return edgesToFaces
@@ -96,6 +118,10 @@ export default class Polyhedron {
 
   numFacesBySides() {
     return countBy(this.faces, "numSides")
+  }
+
+  caps(opts: CapSearchOpts) {
+    return [...Cap.getAll(this, opts)]
   }
 
   // Search functions
@@ -121,10 +147,12 @@ export default class Polyhedron {
     return minBy(this.faces, "numSides")!
   }
 
+  facesWithNumSides(n: number) {
+    return this.faces.filter((f) => f.numSides === n)
+  }
+
   faceWithNumSides(n: number) {
-    const face = this.faces.find((f) => f.numSides === n)
-    if (!face) throw new Error(`No face of ${n} sides exists`)
-    return face
+    return find(this.faces, (f) => f.numSides === n)
   }
 
   // The list of the type of faces this polyhedron has, ordered
@@ -172,12 +200,14 @@ export default class Polyhedron {
   sphericity() {
     const v = this.volume()
     const a = this.surfaceArea()
-    return (Math.PI ** (1 / 3) * (6 * v) ** (2 / 3)) / a
+    return (PI ** (1 / 3) * (6 * v) ** (2 / 3)) / a
   }
 
   /** Get the face that is closest to the given point. */
-  hitFace(point: Vec3D) {
-    return minBy(this.faces, (face) => face.plane().getDistanceToPoint(point))!
+  hitFace(point: Vector3) {
+    return minBy(this.faces, (face) =>
+      Math.abs(face.plane().distanceToPoint(point)),
+    )!
   }
 
   // Mutations
@@ -185,10 +215,6 @@ export default class Polyhedron {
 
   withChanges(changes: (b: Builder) => Builder) {
     return changes(new Builder(this)).build()
-  }
-
-  withName(name: string) {
-    return new Polyhedron({ ...this.solidData, name })
   }
 
   // TODO support all the solid builder functions
@@ -215,7 +241,7 @@ export default class Polyhedron {
   reflect() {
     return this.withChanges((s) =>
       s
-        .mapVertices((v) => new Vec3D(-v.vec.x, v.vec.y, v.vec.z))
+        .mapVertices((v) => new Vector3(-v.vec.x, v.vec.y, v.vec.z))
         .mapFaces((f) => [...f.vertices.map((v) => v.index)].reverse()),
     )
   }
@@ -227,8 +253,10 @@ export default class Polyhedron {
   }
 
   normalizeToVolume(volume: number) {
-    const scale = Math.cbrt(volume / this.volume())
-    return this.withVertices(this.vertices.map((v) => v.vec.scale(scale)))
+    const scale = cbrt(volume / this.volume())
+    return this.withVertices(
+      this.vertices.map((v) => v.vec.multiplyScalar(scale)),
+    )
   }
 
   isDeltahedron() {

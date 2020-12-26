@@ -47,53 +47,6 @@ function InnerIcon({ name }: Props) {
           <Polygon {...inner()} n={5} cx={100} cy={100} a={-90} r={66} />
         </>
       )
-    case "pyramid":
-      return (
-        <>
-          <PolyShape
-            {...outer()}
-            points={[
-              [100, 50],
-              [10, 170],
-              [190, 170],
-            ]}
-          />
-          <PolyLine
-            {...inner()}
-            points={[
-              [140, 170],
-              [100, 50],
-              [60, 170],
-            ]}
-          />
-        </>
-      )
-    case "fastigium": {
-      const center = 100
-      const height = 50
-      const topY = center - height
-      const bottomY = center + height
-      return (
-        <>
-          <PolyShape
-            {...outer()}
-            points={[
-              [150, topY],
-              [50, topY],
-              [10, bottomY],
-              [190, bottomY],
-            ]}
-          />
-          <PolyLine
-            {...inner()}
-            points={[
-              [150, topY],
-              [120, bottomY],
-            ]}
-          />
-        </>
-      )
-    }
     case "cupola": {
       const center = 100
       const height = 50

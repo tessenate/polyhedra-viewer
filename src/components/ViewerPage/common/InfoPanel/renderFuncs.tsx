@@ -1,8 +1,7 @@
 import React from "react"
 import { capitalize, map } from "lodash-es"
 import { ChildrenProp } from "types"
-import { polygonNames } from "data/polygons"
-import PolyhedronSpecs from "data/specs/PolyhedronSpecs"
+import { PolyhedronSpecs, polygonNames } from "specs"
 import { Polyhedron } from "math/polyhedra"
 import { useStyle } from "styles"
 

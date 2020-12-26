@@ -1,27 +1,20 @@
 import { pullAt } from "lodash-es"
 
-import { Point } from "types"
-import { Vec3D } from "math/geom"
+import { Vector3 } from "three"
 import { VIndex, SolidData } from "./solidTypes"
 import Vertex from "./Vertex"
 import Face from "./Face"
 import Polyhedron from "./Polyhedron"
 
-export type VertexArg = Point | Vec3D | Vertex
+export type VertexArg = Vector3 | Vertex
 
 export type FaceArg = (VIndex | Vertex)[] | Face
 
-export function normalizeVertex(v: VertexArg) {
-  // If it's a raw point
-  if (Array.isArray(v)) return v
-  // if it's a vector
-  if (v instanceof Vec3D) return v.toArray()
-  // If it's a vertex object
-  if (v instanceof Vertex) return v.value
-  throw new Error("Invalid vertex")
+export function normalizeVertex(v: VertexArg): Vector3 {
+  return v instanceof Vertex ? v.vec : v
 }
 
-function normalizeFace(face: FaceArg) {
+function normalizeFace(face: FaceArg): VIndex[] {
   if (Array.isArray(face)) {
     return face.map((v) => {
       if (typeof v === "number") return v

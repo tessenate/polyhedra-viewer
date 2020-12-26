@@ -1,29 +1,24 @@
-import { withOrigin } from "math/geom"
-import { Polyhedron, Cap } from "math/polyhedra"
+import { Polyhedron } from "math/polyhedra"
 import { mapObject } from "utils"
-import Capstone from "data/specs/Capstone"
-import Composite from "data/specs/Composite"
-import { inc, dec, getCapAlignment, getCupolaGyrate } from "./cutPasteUtils"
+import { PolyhedronSpecs, Capstone, Composite } from "specs"
+import { CapOptions, capOptionArgs } from "./cutPasteUtils"
 import { getTransformedVertices } from "../operationUtils"
 import { makeOperation } from "../Operation"
+import { PolyhedronForme as Forme } from "math/formes"
+import {
+  GraphGenerator,
+  toDirected,
+  combineOps,
+  OpInput,
+} from "../operationPairs"
 
 const TAU = 2 * Math.PI
 
-interface Options {
-  cap: Cap
-}
-
-export function isGyrated(cap: Cap) {
-  return getCupolaGyrate(cap) === "ortho"
-}
-
-function applyGyrate(polyhedron: Polyhedron, { cap }: Options) {
+function applyGyrate(polyhedron: Polyhedron, { cap }: CapOptions) {
   // get adjacent faces
   const boundary = cap.boundary()
-
   // rotate the cupola/rotunda top
   const theta = TAU / boundary.numSides
-
   const oldToNew = mapObject(boundary.vertices, (vertex, i) => [
     vertex.index,
     i,
@@ -44,10 +39,7 @@ function applyGyrate(polyhedron: Polyhedron, { cap }: Options) {
 
   const endVertices = getTransformedVertices(
     [cap],
-    (p) =>
-      withOrigin(p.normalRay(), (v) =>
-        v.getRotatedAroundAxis(p.normal(), theta),
-      ),
+    (cap) => cap.withCentroidOrigin(cap.rotateNormal(theta)),
     mockPolyhedron.vertices,
   )
 
@@ -61,63 +53,77 @@ function applyGyrate(polyhedron: Polyhedron, { cap }: Options) {
   }
 }
 
-export const gyrate = makeOperation<{ cap: Cap }, Capstone | Composite>(
-  "gyrate",
-  {
+export interface GraphOpts {
+  align?: "meta" | "para"
+  direction?: "forward" | "back"
+}
+
+type GyrateGraphGenerator<S> = GraphGenerator<S, GraphOpts, GraphOpts>
+
+interface GyrateArgs<S extends PolyhedronSpecs> {
+  graph(): GyrateGraphGenerator<S>
+  toGraphOpts(forme: Forme<S>, options: CapOptions): GraphOpts
+}
+
+function makeGyrateOp<S extends PolyhedronSpecs>({
+  graph,
+  toGraphOpts,
+}: GyrateArgs<S>): GyrateOpArgs<S> {
+  return {
+    graph: function* () {
+      yield* toDirected("left", graph)()
+      yield* toDirected("right", graph)()
+    },
+    toGraphOpts,
     apply({ geom }, options) {
       return applyGyrate(geom, options)
     },
+  }
+}
 
-    canApplyTo(info) {
-      if (info.isCapstone()) {
-        return info.isBi() && !info.isPyramid() && info.data.base > 2
-      }
-      if (info.isComposite()) {
-        const { source, diminished } = info.data
-        if (source.canonicalName() !== "rhombicosidodecahedron") return false
-        if (diminished === 2) return !info.isPara()
-        return diminished < 3
-      }
-      return false
-    },
+type GyrateOpArgs<S extends PolyhedronSpecs> = OpInput<CapOptions, S, GraphOpts>
 
-    getResult({ specs, geom }, { cap }) {
-      if (specs.isCapstone()) {
-        const { gyrate } = specs.data
-        return specs.withData({ gyrate: gyrate === "ortho" ? "gyro" : "ortho" })
-      }
-      const { gyrate } = specs.data
-      if (isGyrated(cap)) {
-        return specs.withData({ gyrate: dec(gyrate), align: "meta" })
-      } else {
-        return specs.withData({
-          gyrate: inc(gyrate),
-          align: specs.isMono() ? getCapAlignment(geom, cap) : undefined,
-        })
-      }
-    },
-
-    hasOptions() {
-      return true
-    },
-
-    *allOptionCombos({ geom }) {
-      for (const cap of Cap.getAll(geom)) yield { cap }
-    },
-
-    hitOption: "cap",
-    getHitOption({ geom }, hitPnt) {
-      const cap = Cap.find(geom, hitPnt)
-      return cap ? { cap } : {}
-    },
-
-    faceSelectionStates({ geom }, { cap }) {
-      const allCapFaces = Cap.getAll(geom).flatMap((cap) => cap.faces())
-      return geom.faces.map((face) => {
-        if (cap instanceof Cap && face.inSet(cap.faces())) return "selected"
-        if (face.inSet(allCapFaces)) return "selectable"
-        return undefined
-      })
-    },
+const gyrateCapstone = makeGyrateOp<Capstone>({
+  graph: function* () {
+    for (const cap of Capstone.query.where(
+      (s) => (s.hasGyrate() && s.isOrtho() && !s.isDigonal()) || s.isChiral(),
+    )) {
+      yield { left: cap, right: cap.gyrate() }
+    }
   },
-)
+  toGraphOpts() {
+    return {}
+  },
+})
+
+const gyrateComposite = makeGyrateOp<Composite>({
+  graph: function* () {
+    for (const solid of Composite.query.where(
+      (s) => s.isGyrateSolid() && s.isGyrate(),
+    )) {
+      yield {
+        left: solid.ungyrate(),
+        right: solid,
+        options: {
+          left: { direction: "forward", align: solid.data.align },
+          right: { direction: "back" },
+        },
+      }
+    }
+  },
+  toGraphOpts(forme, { cap }) {
+    if (forme.isGyrate(cap)) {
+      return { direction: "back" }
+    } else {
+      return { direction: "forward", align: forme.alignment(cap) }
+    }
+  },
+})
+
+export const gyrate = makeOperation("gyrate", {
+  ...combineOps<Capstone | Composite, CapOptions, GraphOpts>([
+    gyrateCapstone,
+    gyrateComposite,
+  ]),
+  ...capOptionArgs,
+})

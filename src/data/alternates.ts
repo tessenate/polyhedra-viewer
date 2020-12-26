@@ -1,43 +1,52 @@
 import { assertValidSolid } from "./common"
 
 export const alternateNamesMapping: Record<string, string[]> = {
-  tetrahedron: ["triangular pyramid", "digonal antiprism", "disphenoid"],
+  tetrahedron: [
+    "tetrahedron dual",
+    "triangular pyramid",
+    "digonal antiprism",
+    "disphenoid",
+  ],
+  "truncated tetrahedron": ["truncated tetrahedron dual"],
   cube: ["square prism"],
   octahedron: ["tetratetrahedron", "triangular antiprism", "square bipyramid"],
   icosahedron: [
-    "snub tetrahedron",
     "snub tetratetrahedron",
     "gyroelongated pentagonal bipyramid",
     "snub triangular antiprism",
   ],
   cuboctahedron: ["rhombitetratetrahedron", "triangular gyrobicupola"],
   "truncated octahedron": ["truncated tetratetrahedron"],
-  rhombicuboctahedron: ["elongated square orthobicupola"],
-  "snub cube": ["snub cuboctahedron"],
+  rhombicuboctahedron: [
+    "elongated square orthobicupola",
+    "bigyrate rhombicuboctahedron",
+  ],
   icosidodecahedron: ["pentagonal gyrobirotunda"],
-  "snub dodecahedron": ["snub icosidodecahedron"],
 
   // fastigium
   "triangular prism": ["fastigium", "digonal cupola"],
   gyrobifastigium: ["digonal gyrobicupola"],
 
-  // related to augmented/diminished/gyrate solids
-  "pentagonal antiprism": ["parabidiminished icosahedron"],
-  "gyroelongated pentagonal pyramid": ["diminished icosahedron"],
-  "square pyramid": ["diminished octahedron"],
-
+  // Augmented solids
   "triangular bipyramid": ["augmented tetrahedron"],
   "elongated square pyramid": ["augmented cube", "augmented square prism"],
   "elongated square bipyramid": [
     "biaugmented cube",
     "biaugmented square prism",
   ],
+  // Diminished solids
+  "square pyramid": ["diminished octahedron"],
+  "pentagonal antiprism": ["parabidiminished icosahedron"],
+  "gyroelongated pentagonal pyramid": ["diminished icosahedron"],
 
-  "elongated square gyrobicupola": [
-    "pseudorhombicuboctahedron",
-    "gyrate rhombicuboctahedron",
+  // Gyrate and diminished solids
+  "triangular orthobicupola": ["gyrate rhombitetratetrahedron"],
+  "triangular cupola": ["diminished rhombitetratetrahedron"],
+  "elongated square gyrobicupola": ["gyrate rhombicuboctahedron"],
+  "elongated square cupola": [
+    "diminished rhombicuboctahedron",
+    "gyrate diminished rhombicuboctahedron",
   ],
-  "elongated square cupola": ["diminished rhombicuboctahedron"],
   "octagonal prism": ["bidiminished rhombicuboctahedron"],
 
   // Snub antiprisms

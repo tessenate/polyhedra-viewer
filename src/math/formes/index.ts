@@ -1,0 +1,7 @@
+export type { PolyhedronForme } from "./BaseForme"
+export { default as ClassicalForme } from "./ClassicalForme"
+export { default as CapstoneForme } from "./CapstoneForme"
+export { default as CompositeForme } from "./CompositeForme"
+export { default as ElementaryForme } from "./ElementaryForme"
+export { default as createForme, fromSpecs, fromName } from "./createForme"
+export type { FaceType } from "./FaceType"
